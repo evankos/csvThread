@@ -3,12 +3,12 @@ import au.com.bytecode.opencsv.CSVReader;
 
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
 /**
  * Created by Vaggelis on 3/7/2016.
  */
@@ -56,6 +56,7 @@ public class CsvProcess {
         if(threaded){
             try {
                 CSVReader reader = new CSVReader(new FileReader(path));
+                Collection<Future<?>> futures = new LinkedList<Future<?>>();
                 Integer parallel = 8;
                 ExecutorService executor = Executors.newFixedThreadPool(parallel);
                 String [] nextLine;
@@ -64,18 +65,20 @@ public class CsvProcess {
                 while ((nextLine = reader.readNext()) != null) {
                     if(completed % parallel != 0){
                         Runnable worker = new WorkerThread(nextLine[0],Arrays.copyOfRange(nextLine, 1, 1001),this.csvMap);
-                        executor.execute(worker);//calling execute method of ExecutorService
+//                        executor.execute(worker);//calling execute method of ExecutorService
+                        futures.add(executor.submit(worker));
                     }
                     else{
-                        executor.shutdown();
-                        while (!executor.isTerminated()) {   }
 //                    System.out.println("Finished all threads... restarting");
-                        executor = Executors.newFixedThreadPool(parallel);
+                        for (Future<?> future:futures) {
+                            future.get();
+                        }
+                        futures.clear();
                     }
                     System.out.printf("\r%.0f%%",(100 * completed) / total);
                     completed++;
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
@@ -136,8 +139,8 @@ public class CsvProcess {
     }
 
     public static void main(String[] args){
-//        CsvProcess csvProcess = new CsvProcess("C:\\Users\\Vaggelis\\PycharmProjects\\DeepNet\\train_photos.csv", true);
-        CsvProcess csvProcess = new CsvProcess("C:\\Users\\Vaggelis\\PycharmProjects\\DeepNet\\train_photos.csv");
+        CsvProcess csvProcess = new CsvProcess("C:\\Users\\Vaggelis\\PycharmProjects\\DeepNet\\train_photos.csv", true);
+//        CsvProcess csvProcess = new CsvProcess("C:\\Users\\Vaggelis\\PycharmProjects\\DeepNet\\train_photos.csv");
 //        CsvProcess csvProcess = new CsvProcess("C:\\Users\\Vaggelis\\PycharmProjects\\DeepNet\\train_photos.csv", false);
     }
 }
